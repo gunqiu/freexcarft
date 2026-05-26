@@ -1,0 +1,71 @@
+name: FreeXCraft Auto Renew
+
+on:
+  schedule:
+    - cron: '5 */8 * * *'
+  workflow_dispatch: # 手动触发按钮
+
+permissions:
+  contents: write
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Serial Multi-Account Run
+        env:
+          # 读取包含所有账号的长字符串 (格式: u1:p1:s1 u2:p2:s2)
+          ACCOUNTS_DATA: ${{ secrets.FXC_ACCOUNTS }}
+          # 平台级公共变量
+          FXC_ACTION_ID: ${{ secrets.FXC_ACTION_ID }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: |
+          IFS=' ' read -r -a acc_array <<< "$ACCOUNTS_DATA"
+          echo "👥 检测到 ${#acc_array[@]} 个账号，准备串行处理..."
+
+          for acc in "${acc_array[@]}"; do
+            
+            IFS=':' read -r u p s <<< "$acc"
+            
+            echo "--------------------------------------"
+            echo "🔄 正在切换至账号: $u"
+                        
+            export FXC_EMAIL="$u"
+            export FXC_PASS="$p"
+            export FXC_SERVER_ID="$s"
+                        
+            if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+              python main.py
+            else
+              delay=$((10 + RANDOM % 20))
+              echo "💤 随机等待 $delay 秒后开始执行..."
+              sleep $delay
+              python main.py
+            fi
+                        
+            extra_sleep=$((10 + RANDOM % 21))
+            echo "✅ $u 已处理，安全休眠 $extra_sleep 秒..."
+            sleep $extra_sleep
+          done
+
+      - name: Heartbeat commit
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git pull origin main || true
+          echo "Last run: $(date -u)" > heartbeat.txt
+          git add heartbeat.txt
+          git commit -m "heartbeat $(date -u)" || echo "No changes"
+          git push origin HEAD:main
