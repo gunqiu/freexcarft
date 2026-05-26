@@ -27,7 +27,7 @@ jobs:
           # 读取包含所有账号的长字符串 (格式: u1:p1:s1 u2:p2:s2)
           ACCOUNTS_DATA: ${{ secrets.FXC_ACCOUNTS }}
           # 平台级公共变量
-          FXC_ACTION_ID: ${{ secrets.FXC_ACTION_ID }}
+          
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
